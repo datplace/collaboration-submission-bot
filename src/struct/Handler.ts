@@ -238,7 +238,6 @@ export class Handler {
 									timestamp: new Date().toISOString(),
 								},
 							],
-							allowed_mentions: { parse: [] },
 						},
 					},
 				);
