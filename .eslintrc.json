@@ -1,0 +1,16 @@
+{
+	"root": true,
+	"extends": ["marine/prettier/node"],
+	"parserOptions": {
+		"project": "./tsconfig.eslint.json"
+	},
+	"env": {
+		"jest": true
+	},
+	"rules": {
+		"@typescript-eslint/ban-types": "off",
+		"curly": ["error", "all"],
+		"no-multi-assign": "off",
+		"no-eq-null": "off"
+	}
+}

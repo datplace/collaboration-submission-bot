@@ -1,0 +1,9 @@
+/**/dist
+coverage
+.env
+
+node_modules
+
+.idea
+.vscode
+*.log
