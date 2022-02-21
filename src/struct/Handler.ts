@@ -421,7 +421,7 @@ export class Handler {
 						custom_id: 'Type of help needed',
 						style: TextInputStyle.Paragraph,
 						placeholder: 'This could be a few things, briefly describe the help you need in a list.',
-						min_length: 50,
+						min_length: 15,
 						max_length: 1000,
 					},
 					{
@@ -430,7 +430,7 @@ export class Handler {
 						custom_id: 'Time Commitment Required',
 						style: TextInputStyle.Paragraph,
 						placeholder: 'If no real time commitment is needed, such as a one and done collaboration, you can put N/A.',
-						min_length: 50,
+						min_length: 15,
 						max_length: 1000,
 					},
 					{
@@ -439,7 +439,7 @@ export class Handler {
 						custom_id: 'Paid Collaboration?',
 						style: TextInputStyle.Paragraph,
 						placeholder: 'If you expect to provide any financial compensation, please describe that here!',
-						min_length: 50,
+						min_length: 15,
 						max_length: 1000,
 					},
 					{
@@ -449,7 +449,7 @@ export class Handler {
 						style: TextInputStyle.Paragraph,
 						placeholder:
 							'This is for any extra information about posts. Tell them whatever else you want them to know.',
-						min_length: 50,
+						min_length: 15,
 						max_length: 1000,
 					},
 				]),
