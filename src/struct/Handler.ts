@@ -61,18 +61,14 @@ export class Handler {
 
 		const permissions: RESTPutAPIGuildApplicationCommandsPermissionsJSONBody = [];
 		const pushStaff = (id: string) =>
-			permissions.push(
-				...this.env.staffRoles.map((role) => ({
-					id,
-					permissions: [
-						{
-							id: role,
-							type: ApplicationCommandPermissionType.Role,
-							permission: true,
-						},
-					],
+			permissions.push({
+				id,
+				permissions: this.env.staffRoles.map((role) => ({
+					id: role,
+					type: ApplicationCommandPermissionType.Role,
+					permission: true,
 				})),
-			);
+			});
 
 		for (const command of data) {
 			switch (command.name) {
