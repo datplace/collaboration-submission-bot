@@ -18,7 +18,7 @@ async function main(): Promise<void> {
 		.on('dispatch', (payload) => {
 			// @ts-expect-error - Miss matched discord-api-types versions
 			if (payload.t !== GatewayDispatchEvents.InteractionCreate) {
-				console.warn('Unknown dispatch type (this could mean miss-configured intents or nothing at all): ', payload.t);
+				console.warn('Unknown dispatch type (this could mean miss-configured intents or nothing at all):', payload.t);
 				return null;
 			}
 

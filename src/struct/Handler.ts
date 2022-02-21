@@ -7,6 +7,7 @@ import {
 	APIMessageComponentInteraction,
 	APIModalSubmitInteraction,
 	APITextInputComponent,
+	ApplicationCommandPermissionType,
 	ApplicationCommandType,
 	ButtonStyle,
 	ComponentType,
@@ -20,6 +21,7 @@ import {
 	RESTPostAPIInteractionCallbackJSONBody,
 	RESTPutAPIApplicationCommandsJSONBody,
 	RESTPutAPIApplicationCommandsResult,
+	RESTPutAPIGuildApplicationCommandsPermissionsJSONBody,
 	Routes,
 	TextInputStyle,
 } from 'discord-api-types/v9';
@@ -50,10 +52,41 @@ export class Handler {
 			}
 		}
 
-		await this.rest.put<RESTPutAPIApplicationCommandsResult, RESTPutAPIApplicationCommandsJSONBody>(
+		const data = await this.rest.put<RESTPutAPIApplicationCommandsResult, RESTPutAPIApplicationCommandsJSONBody>(
 			Routes.applicationGuildCommands(this.env.discordClientId, this.env.guildId),
 			{
 				data: commandsData,
+			},
+		);
+
+		const permissions: RESTPutAPIGuildApplicationCommandsPermissionsJSONBody = [];
+		const pushStaff = (id: string) =>
+			permissions.push(
+				...this.env.staffRoles.map((role) => ({
+					id,
+					permissions: [
+						{
+							id: role,
+							type: ApplicationCommandPermissionType.Role,
+							permission: true,
+						},
+					],
+				})),
+			);
+
+		for (const command of data) {
+			switch (command.name) {
+				case 'prompt': {
+					pushStaff(command.id);
+					break;
+				}
+			}
+		}
+
+		await this.rest.put<unknown, RESTPutAPIGuildApplicationCommandsPermissionsJSONBody>(
+			Routes.guildApplicationCommandsPermissions(this.env.discordClientId, this.env.guildId),
+			{
+				data: permissions,
 			},
 		);
 	}
@@ -147,67 +180,44 @@ export class Handler {
 		const name = interaction.data.name.toLowerCase();
 		switch (name) {
 			case 'submit': {
-				const makeActionRows = (components: APITextInputComponent[]): APIActionRowComponent<APITextInputComponent>[] =>
-					components.map((component) => ({
-						type: ComponentType.ActionRow,
-						components: [component],
-					}));
+				return this.respondModal(interaction);
+			}
+
+			case 'prompt': {
+				await this.rest.post<unknown, RESTPostAPIChannelMessageJSONBody>(
+					Routes.channelMessages(interaction.channel_id),
+					{
+						data: {
+							embeds: [
+								{
+									color: 7506394,
+									title: 'Collaboration requests',
+									description:
+										"If you're looking for someone to work with on a project, press the button below or make use of the `/submit` slash command in any channel.",
+								},
+							],
+							components: [
+								{
+									type: ComponentType.ActionRow,
+									components: [
+										{
+											type: ComponentType.Button,
+											custom_id: 'submit-button',
+											label: 'Submit a collaboration',
+											style: ButtonStyle.Primary,
+										},
+									],
+								},
+							],
+						},
+					},
+				);
 
 				return this.respond(interaction, {
-					type: InteractionResponseType.Modal,
+					type: InteractionResponseType.ChannelMessageWithSource,
 					data: {
-						title: 'Submit a potential collaboration',
-						custom_id: 'submit-collaboration',
-						components: makeActionRows([
-							{
-								label: 'Project name',
-								type: ComponentType.TextInput,
-								custom_id: 'Project name',
-								style: TextInputStyle.Short,
-								placeholder:
-									'This is the name of whatever project you need help with, which can also be a server name.',
-								min_length: 2,
-								max_length: 40,
-							},
-							{
-								label: 'Type of help needed',
-								type: ComponentType.TextInput,
-								custom_id: 'Type of help needed',
-								style: TextInputStyle.Paragraph,
-								placeholder: 'This could be a few things, briefly describe the help you need in a list.',
-								min_length: 50,
-								max_length: 1000,
-							},
-							{
-								label: 'Time Commitment Required',
-								type: ComponentType.TextInput,
-								custom_id: 'Time Commitment Required',
-								style: TextInputStyle.Paragraph,
-								placeholder:
-									'If no real time commitment is needed, such as a one and done collaboration, you can put N/A.',
-								min_length: 50,
-								max_length: 1000,
-							},
-							{
-								label: 'Paid Collaboration?',
-								type: ComponentType.TextInput,
-								custom_id: 'Paid Collaboration?',
-								style: TextInputStyle.Paragraph,
-								placeholder: 'If you expect to provide any financial compensation, please describe that here!',
-								min_length: 50,
-								max_length: 1000,
-							},
-							{
-								label: 'Extra Information',
-								type: ComponentType.TextInput,
-								custom_id: 'Extra Information',
-								style: TextInputStyle.Paragraph,
-								placeholder:
-									'This is for any extra information about posts. Tell them whatever else you want them to know.',
-								min_length: 50,
-								max_length: 1000,
-							},
-						]),
+						content: 'Done!',
+						flags: MessageFlags.Ephemeral,
 					},
 				});
 			}
@@ -215,15 +225,15 @@ export class Handler {
 	}
 
 	private async handleComponent(interaction: APIMessageComponentInteraction): Promise<unknown> {
-		await this.respond(interaction, {
-			type: InteractionResponseType.DeferredChannelMessageWithSource,
-			data: { flags: MessageFlags.Ephemeral },
-		});
-
 		const [id, userId] = interaction.data.custom_id.split('|') as [string, string?];
 
 		switch (id) {
 			case 'approve': {
+				await this.respond(interaction, {
+					type: InteractionResponseType.DeferredChannelMessageWithSource,
+					data: { flags: MessageFlags.Ephemeral },
+				});
+
 				await this.rest.post<unknown, RESTPostAPIChannelMessageJSONBody>(
 					Routes.channelMessages(this.env.approvedChannelId),
 					{
@@ -270,6 +280,11 @@ export class Handler {
 			}
 
 			case 'deny': {
+				await this.respond(interaction, {
+					type: InteractionResponseType.DeferredChannelMessageWithSource,
+					data: { flags: MessageFlags.Ephemeral },
+				});
+
 				await this.rest.patch<unknown, RESTPatchAPIChannelMessageJSONBody>(
 					Routes.channelMessage(interaction.channel_id, interaction.message.id),
 					{
@@ -295,6 +310,10 @@ export class Handler {
 						flags: MessageFlags.Ephemeral,
 					},
 				});
+			}
+
+			case 'submit-button': {
+				return this.respondModal(interaction);
 			}
 
 			default: {
@@ -374,6 +393,70 @@ export class Handler {
 			data: {
 				content: 'Thank you for your submission! Please wait while the staff team reviews it.',
 				flags: MessageFlags.Ephemeral,
+			},
+		});
+	}
+
+	private async respondModal(interaction: APIInteraction): Promise<unknown> {
+		const makeActionRows = (components: APITextInputComponent[]): APIActionRowComponent<APITextInputComponent>[] =>
+			components.map((component) => ({
+				type: ComponentType.ActionRow,
+				components: [component],
+			}));
+
+		return this.respond(interaction, {
+			type: InteractionResponseType.Modal,
+			data: {
+				title: 'Submit a potential collaboration',
+				custom_id: 'submit-collaboration',
+				components: makeActionRows([
+					{
+						label: 'Project name',
+						type: ComponentType.TextInput,
+						custom_id: 'Project name',
+						style: TextInputStyle.Short,
+						placeholder: 'This is the name of whatever project you need help with, which can also be a server name.',
+						min_length: 2,
+						max_length: 40,
+					},
+					{
+						label: 'Type of help needed',
+						type: ComponentType.TextInput,
+						custom_id: 'Type of help needed',
+						style: TextInputStyle.Paragraph,
+						placeholder: 'This could be a few things, briefly describe the help you need in a list.',
+						min_length: 50,
+						max_length: 1000,
+					},
+					{
+						label: 'Time Commitment Required',
+						type: ComponentType.TextInput,
+						custom_id: 'Time Commitment Required',
+						style: TextInputStyle.Paragraph,
+						placeholder: 'If no real time commitment is needed, such as a one and done collaboration, you can put N/A.',
+						min_length: 50,
+						max_length: 1000,
+					},
+					{
+						label: 'Paid Collaboration?',
+						type: ComponentType.TextInput,
+						custom_id: 'Paid Collaboration?',
+						style: TextInputStyle.Paragraph,
+						placeholder: 'If you expect to provide any financial compensation, please describe that here!',
+						min_length: 50,
+						max_length: 1000,
+					},
+					{
+						label: 'Extra Information',
+						type: ComponentType.TextInput,
+						custom_id: 'Extra Information',
+						style: TextInputStyle.Paragraph,
+						placeholder:
+							'This is for any extra information about posts. Tell them whatever else you want them to know.',
+						min_length: 50,
+						max_length: 1000,
+					},
+				]),
 			},
 		});
 	}
