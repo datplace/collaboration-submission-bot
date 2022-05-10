@@ -7,7 +7,6 @@ import {
 	APIMessageComponentInteraction,
 	APIModalSubmitInteraction,
 	APITextInputComponent,
-	ApplicationCommandPermissionType,
 	ApplicationCommandType,
 	ButtonStyle,
 	ComponentType,
@@ -21,7 +20,6 @@ import {
 	RESTPostAPIInteractionCallbackJSONBody,
 	RESTPutAPIApplicationCommandsJSONBody,
 	RESTPutAPIApplicationCommandsResult,
-	RESTPutAPIGuildApplicationCommandsPermissionsJSONBody,
 	Routes,
 	TextInputStyle,
 } from 'discord-api-types/v9';
@@ -52,37 +50,10 @@ export class Handler {
 			}
 		}
 
-		const data = await this.rest.put<RESTPutAPIApplicationCommandsResult, RESTPutAPIApplicationCommandsJSONBody>(
+		await this.rest.put<RESTPutAPIApplicationCommandsResult, RESTPutAPIApplicationCommandsJSONBody>(
 			Routes.applicationGuildCommands(this.env.discordClientId, this.env.guildId),
 			{
 				data: commandsData,
-			},
-		);
-
-		const permissions: RESTPutAPIGuildApplicationCommandsPermissionsJSONBody = [];
-		const pushStaff = (id: string) =>
-			permissions.push({
-				id,
-				permissions: this.env.staffRoles.map((role) => ({
-					id: role,
-					type: ApplicationCommandPermissionType.Role,
-					permission: true,
-				})),
-			});
-
-		for (const command of data) {
-			switch (command.name) {
-				case 'prompt': {
-					pushStaff(command.id);
-					break;
-				}
-			}
-		}
-
-		await this.rest.put<unknown, RESTPutAPIGuildApplicationCommandsPermissionsJSONBody>(
-			Routes.guildApplicationCommandsPermissions(this.env.discordClientId, this.env.guildId),
-			{
-				data: permissions,
 			},
 		);
 	}
